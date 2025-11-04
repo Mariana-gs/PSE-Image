@@ -1,6 +1,7 @@
 import sys
 import numpy as np 
 # Importe PySide6 PRIMEIRO
+# teste
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QGraphicsView, QGraphicsScene, 
     QDockWidget, QListWidget, QGraphicsItem, QGraphicsPathItem,
