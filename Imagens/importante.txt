@@ -1,1 +1,2 @@
-imagem em 600x400
+imagem da paisagem em 600x400
+imagem da arara em 343x512

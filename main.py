@@ -14,7 +14,7 @@ from PySide6.QtGui import (
     QImage, QPixmap 
 )
 
-
+# Importe qimage2ndarray DEPOIS
 import qimage2ndarray 
 
 # --- 1. CLASSE NodeConnector ---
@@ -196,11 +196,15 @@ class BlockDisplay(NodeBlock):
 
         # 4. Desenha a imagem (se existir)
         if self.pixmap:
-            painter.drawPixmap(
-                img_rect, 
-                self.pixmap, 
-                self.pixmap.rect() # Desenha a imagem inteira dentro do img_rect
-            )
+            # Mantém a proporção da imagem dentro do retângulo
+            scaled_pixmap = self.pixmap.scaled(img_rect.size().toSize(), 
+                                               Qt.AspectRatioMode.KeepAspectRatio, 
+                                               Qt.TransformationMode.SmoothTransformation)
+            # Centraliza o pixmap escalonado
+            pixmap_rect = scaled_pixmap.rect()
+            pixmap_rect.moveCenter(img_rect.center().toPoint())
+            painter.drawPixmap(pixmap_rect, scaled_pixmap)
+            
         else:
             # Se não houver imagem, desenha um placeholder
             painter.setPen(QPen(Qt.GlobalColor.gray))
@@ -419,7 +423,6 @@ class MainWindow(QMainWindow):
         self.setGeometry(100, 100, 1200, 800)
 
         # Configura a Cena e o View
-        # self.scene = FlowScene(self) # Passar 'self' (MainWindow) como pai
         self.scene = FlowScene()
         self.view = FlowView(self.scene, self)
         
@@ -434,49 +437,75 @@ class MainWindow(QMainWindow):
         toolbar.addWidget(self.process_button)
         
         # Adiciona Docks
-        self.create_block_library_dock()
         self.create_properties_dock() 
-        
         
         self.scene.selectionChanged.connect(self.on_selection_changed)
         
-    def create_block_library_dock(self):
-        block_dock = QDockWidget("Biblioteca de Blocos", self)
-        block_list = QListWidget()
-        block_list.addItem("Leitura de arquivo RAW")
-        block_list.addItem("Exibição de imagem")
-        block_list.addItem("Gravação de arquivo RAW")
-        block_list.addItem("Processamento Pontual")
-        block_list.addItem("Máscara de Convolução")
-        block_list.addItem("Plotagem de Histograma")
-        block_list.addItem("Diferença entre Imagens")
-        block_dock.setWidget(block_list)
-        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, block_dock)
-
     def create_properties_dock(self):
         self.props_dock = QDockWidget("Propriedades", self)
         self.props_container = QWidget()
         self.props_layout = QVBoxLayout(self.props_container)
-        self.props_layout.addWidget(QLabel("Selecione um bloco para ver suas propriedades."))
+        
+        # --- MUDANÇA AQUI ---
+        # Texto inicial com instruções
+        self.props_layout.addWidget(QLabel(
+            "Bem-vindo ao PSE-Image!\n\n"
+            "Clique com o botão direito no canvas\n"
+            "para adicionar um novo bloco."
+        ))
+        # --- FIM DA MUDANÇA ---
+        
         self.props_layout.addStretch() 
         self.props_dock.setWidget(self.props_container)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.props_dock)
 
-
+    # --- MUDANÇA AQUI (CORREÇÃO DO BUG) ---
     def clear_properties_layout(self):
+        """ Limpa recursivamente todos os widgets E layouts do painel. """
         while self.props_layout.count():
-            child = self.props_layout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
+            item = self.props_layout.takeAt(0)
+            
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater() # Deleta o widget
+            
+            layout = item.layout()
+            if layout is not None:
+                self.clear_nested_layout(layout) # Chama o helper recursivo
+                layout.deleteLater() # Deleta o layout
+
+    def clear_nested_layout(self, layout):
+        """ Helper para limpar layouts aninhados (como QFormLayout). """
+        while layout.count():
+            item = layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+            
+            sub_layout = item.layout()
+            if sub_layout is not None:
+                self.clear_nested_layout(sub_layout)
+    # --- FIM DA MUDANÇA ---
 
     def on_selection_changed(self):
         self.clear_properties_layout()
         selected = self.scene.selectedItems()
+        
         if len(selected) == 1 and isinstance(selected[0], NodeBlock):
             block = selected[0]
             self.build_properties_for_block(block)
         else:
-            self.props_layout.addWidget(QLabel("Selecione um único bloco para ver suas propriedades."))
+            # --- MUDANÇA AQUI ---
+            # Texto quando nada está selecionado
+            label = QLabel(
+                "Clique com o botão direito no canvas\n"
+                "para adicionar um novo bloco.\n\n"
+                "Selecione um único bloco para ver\n"
+                "suas propriedades."
+            )
+            label.setAlignment(Qt.AlignmentFlag.AlignTop)
+            self.props_layout.addWidget(label)
+            # --- FIM DA MUDANÇA ---
             self.props_layout.addStretch()
 
     def build_properties_for_block(self, block):
@@ -492,6 +521,7 @@ class MainWindow(QMainWindow):
         self.props_layout.addStretch()
 
     def build_raw_loader_properties(self, block):
+        # ATENÇÃO: QFormLayout precisa ser limpo corretamente
         form_layout = QFormLayout()
         
         self.filepath_label = QLineEdit(block.parameters.get("filepath", "Nenhum arquivo carregado"))
