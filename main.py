@@ -587,7 +587,6 @@ class MainWindow(QMainWindow):
                 
         if count >= max_iterations and queue:
             print("Erro de processamento: Possível loop ou dependência circular detectada.")
-
         print("--- PROCESSAMENTO DO FLUXO CONCLUÍDO ---")
 
 
