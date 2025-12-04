@@ -1,7 +1,10 @@
 import sys
 import numpy as np 
-# Importe PySide6 PRIMEIRO
-# teste
+import os    
+import math
+
+
+
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QGraphicsView, QGraphicsScene, 
     QDockWidget, QListWidget, QGraphicsItem, QGraphicsPathItem,
@@ -132,6 +135,33 @@ class BlockRawInput(NodeBlock):
             print(f"Processando {self.title}: Dados prontos.")
         else:
             print(f"Processando {self.title}: Sem dados.")
+
+
+class BlockRawOutput(NodeBlock):
+    """ Bloco de Gravação RAW. Recebe dados e os prepara para salvar. """
+    def __init__(self, title, scene):
+        super().__init__(title, scene)
+        self.data_to_save = None # Variável para guardar o que será salvo
+
+    def process(self):
+        print(f"Processando {self.title}...")
+        self.data_to_save = None
+        
+        # Pega dados da entrada
+        if self.inputs:
+            input_conn = self.inputs[0][0] 
+            if input_conn in self.input_connections:
+                input_block = self.input_connections[input_conn]
+                # Copia os dados
+                self.data_to_save = input_block.output_data
+                # Também define como output_data caso queira ligar algo depois deste bloco
+                self.output_data = self.data_to_save 
+        
+        if self.data_to_save is not None:
+            print(f"{self.title}: Dados prontos para salvar ({self.data_to_save.shape}).")
+        else:
+            print(f"{self.title}: Sem dados de entrada.")
+
 
 class BlockDisplay(NodeBlock):
     """ Bloco de Exibição. Desenha a imagem de entrada em si mesmo. """
@@ -328,7 +358,7 @@ class FlowScene(QGraphicsScene):
             block.add_connector("Img Entrada", is_input=True)
         
         elif block_name == "Gravação de arquivo RAW":
-            block = NodeBlock(block_name, self) 
+            block = BlockRawOutput(block_name, self) 
             block.add_connector("Img Entrada", is_input=True)
             
         elif block_name == "Processamento Pontual":
@@ -514,12 +544,54 @@ class MainWindow(QMainWindow):
         
         if block.title == "Leitura de arquivo RAW":
             self.build_raw_loader_properties(block)
+        elif block.title == "Gravação de arquivo RAW": 
+            self.build_raw_saver_properties(block)    
         elif block.title == "Processamento Pontual":
             self.props_layout.addWidget(QLabel("Opções de brilho/limiar aqui..."))
         else:
             self.props_layout.addWidget(QLabel("Este bloco não tem parâmetros."))
             
         self.props_layout.addStretch()
+
+
+    def build_raw_saver_properties(self, block):
+        info_label = QLabel("Status: Aguardando processamento...")
+        
+        # Verifica se já existem dados processados no bloco
+        if hasattr(block, 'data_to_save') and block.data_to_save is not None:
+            h, w = block.data_to_save.shape
+            info_label.setText(f"Status: Imagem pronta ({w}x{h})")
+            enable_save = True
+        else:
+            info_label.setText("Status: Sem dados de entrada.\nExecute o fluxo primeiro.")
+            enable_save = False
+            
+        self.props_layout.addWidget(info_label)
+        
+        save_btn = QPushButton("Salvar em Arquivo .RAW")
+        save_btn.setEnabled(enable_save)
+        save_btn.clicked.connect(lambda: self.save_raw_file(block))
+        
+        self.props_layout.addWidget(save_btn)    
+
+    def save_raw_file(self, block):
+        if block.data_to_save is None:
+            self.error_dialog.showMessage("Não há dados para salvar. Execute o fluxo.")
+            return
+
+        filepath, _ = QFileDialog.getSaveFileName(self, "Salvar RAW", "output.raw", "RAW Files (*.raw);;All Files (*)")
+        
+        if not filepath:
+            return
+            
+        try:
+            # Garante que os dados sejam uint8 antes de salvar
+            data_uint8 = block.data_to_save.astype(np.uint8)
+            data_uint8.tofile(filepath)
+            print(f"Sucesso: Arquivo salvo em {filepath}")
+        except Exception as e:
+            self.error_dialog.showMessage(f"Erro ao salvar arquivo: {e}")
+
 
     def build_raw_loader_properties(self, block):
         # ATENÇÃO: QFormLayout precisa ser limpo corretamente
