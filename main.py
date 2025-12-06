@@ -30,7 +30,7 @@ import processing_utils as pu
 
 class NodeConnector(QGraphicsEllipseItem):
     def __init__(self, parent_block, is_input):
-        super().__init__(-5, -5, 10, 10, parent_block) 
+        super().__init__(-10, -10, 20, 20, parent_block) 
         self.parent_block = parent_block
         self.is_input = is_input
         self.wires = [] 
@@ -105,7 +105,6 @@ class NodeBlock(QGraphicsItem):
 
     def paint(self, painter, option, widget=None):
         """ Desenha a aparência base do bloco com borda laranja se selecionado. """
-        # --- MUDANÇA: Lógica de Seleção ---
         if self.isSelected():
             # Borda Laranja e mais grossa (3px)
             painter.setPen(QPen(QColor("orange"), 3))
@@ -223,7 +222,6 @@ class BlockDisplay(NodeBlock):
 
     def paint(self, painter, option, widget=None):
         """ Desenha o bloco de imagem com borda laranja se selecionado. """
-        # --- MUDANÇA: Lógica de Seleção ---
         if self.isSelected():
             painter.setPen(QPen(QColor("orange"), 3))
         else:
@@ -386,7 +384,6 @@ class BlockHistogram(NodeBlock):
 
     def paint(self, painter, option, widget=None):
         """ Desenha o bloco de histograma com borda laranja se selecionado. """
-        # --- MUDANÇA: Lógica de Seleção ---
         if self.isSelected():
             painter.setPen(QPen(QColor("orange"), 3))
         else:
@@ -453,7 +450,6 @@ class ConnectionWire(QGraphicsPathItem):
         self.end_conn = None
         self._end_pos = start_connector.scenePos() 
         
-        # --- MUDANÇA 1: Tornar o fio selecionável ---
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
         
         self.setPen(QPen(Qt.GlobalColor.black, 2))
@@ -502,7 +498,6 @@ class ConnectionWire(QGraphicsPathItem):
             except ValueError:
                 pass
 
-    # --- MUDANÇA 2: Pintar de laranja quando selecionado ---
     def paint(self, painter, option, widget=None):
         # Verifica se o item está selecionado
         if self.isSelected():
@@ -733,7 +728,6 @@ class MainWindow(QMainWindow):
         elif block.title == "Processamento Pontual":
             self.build_punctual_properties(block)
         
-        # --- CORREÇÃO AQUI: Chama o método novo (clean) em vez do antigo ---
         elif block.title == "Gravação de arquivo RAW":
             self.build_raw_saver_properties(block)
             
@@ -754,7 +748,7 @@ class MainWindow(QMainWindow):
         form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft)
         form_layout.setFormAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         
-        # 1. Seletor de Formato (NOVO)
+        # 1. Seletor de Formato
         self.format_combo = QComboBox()
         # Define os modos de leitura disponíveis
         self.format_combo.addItems([
@@ -857,8 +851,6 @@ class MainWindow(QMainWindow):
                 with open(filepath, 'r') as f:
                     content = f.read()
                 
-                # Lógica do seu script 'converter_binario_raw.py':
-                # Remove metadados comuns e quebra por espaços
                 numeros_texto = content.replace('', '').split()
                 
                 pixels = []
@@ -876,8 +868,7 @@ class MainWindow(QMainWindow):
                 pil_img = Image.open(filepath).convert('L') # Converte para Escala de Cinza
                 img_data = np.array(pil_img, dtype=np.uint8)
                 
-                # Imagens JPG/PNG já têm largura e altura definidas!
-                # Não precisamos "adivinhar", então já configuramos direto.
+                # Imagens JPG/PNG já têm largura e altura definidas
                 h, w = img_data.shape
                 
                 # Pula a lógica de fatoração e vai direto para o set
@@ -893,7 +884,7 @@ class MainWindow(QMainWindow):
                 self.res_combo.clear()
                 self.res_combo.addItem(f"{w} x {h} (Nativo)", (w, h))
                 print(f"Sucesso: Imagem carregada ({w}x{h})")
-                return # Sai da função pois já está pronto
+                return
 
             # --- Lógica Comum para RAW e Texto (Adivinhar Resolução) ---
             # Se chegamos aqui, temos um array 1D (tripa de bytes) e precisamos descobrir W e H
@@ -938,7 +929,7 @@ class MainWindow(QMainWindow):
                     # Atualiza spinners via callback simulado
                     self.on_resolution_combo_changed(best_index, block)
                 else:
-                    # Fallback se não achar fatores (muito raro)
+                    # Fallback se não achar fatores
                     block.output_data = img_data.reshape((1, file_size))
                     print("Aviso: Não foi possível determinar dimensões retangulares.")
 
@@ -950,7 +941,7 @@ class MainWindow(QMainWindow):
             self.error_dialog.showMessage(f"Falha ao ler o arquivo: {e}")
     
     
-    # --- Gravação RAW (NOVA E LIMPA) ---
+    # --- Gravação RAW ---
     def build_raw_saver_properties(self, block):
         self.props_layout.addWidget(QLabel("Gravação de Arquivo RAW"))
         
@@ -1008,7 +999,6 @@ class MainWindow(QMainWindow):
     def build_punctual_properties(self, block):
         form_layout = QFormLayout()
         
-        # --- CORREÇÃO: Força o alinhamento dos textos para a esquerda ---
         form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft)
         form_layout.setFormAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         
@@ -1043,7 +1033,6 @@ class MainWindow(QMainWindow):
     def build_convolution_properties(self, block):
         form_layout = QFormLayout()
         
-        # --- CORREÇÃO: Força o alinhamento dos textos para a esquerda ---
         form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft)
         form_layout.setFormAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         
