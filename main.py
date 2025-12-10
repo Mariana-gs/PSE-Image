@@ -643,7 +643,7 @@ class FlowView(QGraphicsView):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("PSE-Image (PUC Minas) - Versão Estendida")
+        self.setWindowTitle("PSE-Image (PUC Minas)")
         self.setGeometry(100, 100, 1200, 800)
 
         self.scene = FlowScene()
